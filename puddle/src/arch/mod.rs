@@ -55,9 +55,6 @@ impl<'a> Sub for &'a Location {
 }
 
 pub type DropletId = usize;
-static DEFAULT_SHAPE: Location = Location{
-    x: 0, y: 0
-};
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct Droplet {
@@ -68,11 +65,16 @@ pub struct Droplet {
     pub collision_group: usize,
 }
 
+// Factory for generating default shapes for droplets
+fn default_shape_factory() -> HashSet<Location> {
+    [Location{ x: 0, y: 0 }].iter().cloned().collect()
+}
+
 impl Droplet {
     fn from_location(location: Location) -> Droplet {
         Droplet {
             location: location,
-            shape: [DEFAULT_SHAPE].iter().cloned().collect(),
+            shape: default_shape_factory(),
             destination: None,
             collision_group: 0,
         }
@@ -80,10 +82,11 @@ impl Droplet {
 
     #[allow(dead_code)]
     fn from_location_and_shape(location: Location, shape: HashSet<Location>) -> Droplet {
-        if !shape.contains(&DEFAULT_SHAPE) {
+        if !shape.contains(&Location{ x: 0, y: 0}) {
             panic!("Invalid shape for droplet");
         }
         // TODO: check that the droplet is contiguous
+        // TODO: use Grid
         Droplet {
             location: location,
             shape: shape,
@@ -252,7 +255,7 @@ pub mod tests {
         {
             Droplet {
                 location: loc,
-                shape: [DEFAULT_SHAPE].iter().cloned().collect(),
+                shape: default_shape_factory(),
                 destination: Some(dest),
                 collision_group: cg,
             }

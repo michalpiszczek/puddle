@@ -4,6 +4,7 @@ pub mod grid;
 use std::ops::{Add, Sub};
 use std::collections::{HashMap, HashSet};
 use std::io::Read;
+use std::sync::RwLock;
 
 use serde_json;
 
@@ -11,11 +12,10 @@ use arch::grid::Grid;
 
 use routing::Path;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone,
-         Copy, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Location {
-    pub x: i32,
     pub y: i32,
+    pub x: i32,
 }
 
 impl Location {
@@ -94,6 +94,21 @@ impl Droplet {
             collision_group: 0,
         }
     }
+
+    pub fn info(&self) -> DropletInfo {
+        DropletInfo {
+            location: self.location,
+            volume: 1,
+            shape: vec![Location { y: 0, x: 0 }],
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Hash, Debug, Serialize)]
+pub struct DropletInfo {
+    location: Location,
+    volume: i32,
+    shape: Vec<Location>,
 }
 
 #[derive(Debug, Clone)]
@@ -201,36 +216,50 @@ impl Architecture {
         None
     }
 
-    pub fn take_paths(&mut self, paths: HashMap<DropletId, Path>) {
+    pub fn take_paths<F>(lock: &RwLock<Self>, paths: HashMap<DropletId, Path>, callback: F)
+    where
+        F: Fn(),
+    {
+
+        use std::mem::drop;
+        let arch = lock.write().unwrap();
 
         #[cfg(test)]
         for (id, path) in paths.iter() {
             use routing::tests::check_path_on_grid;
-            let d = &self.droplets[id];
-            check_path_on_grid(d, path, &self.grid);
+            let d = &arch.droplets[id];
+            check_path_on_grid(d, path, &arch.grid);
         }
         // println!("paths: {:?}", paths);
 
+        drop(arch);
+
         let max_len = paths.values().map(|p| p.len()).max().unwrap_or(0);
         for i in 0..max_len {
+            callback();
+            let mut arch = lock.write().unwrap();
             for (id, path) in paths.iter() {
-                let mut d = self.droplets.get_mut(id).unwrap();
+                let mut d = arch.droplets.get_mut(id).unwrap();
                 if i < path.len() {
                     d.location = path[i];
                 }
             }
-            let coll = self.get_collision();
+            let coll = arch.get_collision();
             if coll.is_some() {
                 let (id1, id2) = coll.unwrap();
-                panic!("Paths: {:?}\n Collision:\n  {:?} {:?}\n  {:?} {:?}",
-                       paths,
-                       id1, self.droplets[&id1], id2, self.droplets[&id2]);
+                panic!(
+                    "Paths: {:?}\n Collision:\n  {:?} {:?}\n  {:?} {:?}",
+                    paths,
+                    id1,
+                    arch.droplets[&id1],
+                    id2,
+                    arch.droplets[&id2]
+                );
             }
-            // assert!(self.get_collision().is_none())
+            // assert!(arch.get_collision().is_none())
         }
 
     }
-
 }
 
 
@@ -262,28 +291,28 @@ pub mod tests {
         }
     }
 
-    pub fn arb_arch_from_grid(grid: Grid, n_droplets: Range<usize>)
-         -> BoxedStrategy<Architecture>
-    {
-        let ht_gen = hash_map(prop::num::usize::ANY,
-                              arb_droplet(grid.locations()
-                                          .map(|(loc, _)| loc).collect()),
-                              n_droplets);
+    pub fn arb_arch_from_grid(grid: Grid, n_droplets: Range<usize>) -> BoxedStrategy<Architecture> {
+        let ht_gen = hash_map(
+            prop::num::usize::ANY,
+            arb_droplet(grid.locations().map(|(loc, _)| loc).collect()),
+            n_droplets,
+        );
         // can't use prop_compose! because we need to move the hash map here
-        ht_gen.prop_map(
-            move |ht| {
+        ht_gen
+            .prop_map(move |ht| {
 
                 let next_id = ht.keys().max().map_or(0, |max| max + 1);
-                let next_cg = ht.values()
-                    .map(|d| d.collision_group)
-                    .max()
-                    .map_or(0, |max| max + 1);
+                let next_cg = ht.values().map(|d| d.collision_group).max().map_or(
+                    0,
+                    |max| max + 1,
+                );
                 Architecture {
                     grid: grid.clone(),
                     next_droplet_id: next_id,
                     next_collision_group: next_cg,
                     droplets: ht,
                 }
-        }).boxed()
+            })
+            .boxed()
     }
 }

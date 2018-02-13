@@ -27,6 +27,7 @@ pub enum ExecutionError {
 pub enum PuddleError {
     ExecutionError(ExecutionError),
     NonExistentDropletId(DropletId),
+    LocationNotInArchitecture(Location),
 }
 
 pub type PuddleResult<T> = Result<T, PuddleError>;
@@ -184,6 +185,12 @@ impl Rpc for Session {
 
     fn input(&self, loc: Location) -> PuddleResult<DropletId> {
         let mut arch = self.arch.write().unwrap();
+
+        // fail fast
+        if arch.grid.locations().all(|(x, _)| x != loc) {
+            return Err(PuddleError::LocationNotInArchitecture(loc));
+        }
+
         let input_cmd = Input::new(&mut arch, loc)?;
         let out = input_cmd.output_droplets()[0];
         self.register(input_cmd);
@@ -192,6 +199,12 @@ impl Rpc for Session {
 
     fn move_droplet(&self, d1: DropletId, loc: Location) -> PuddleResult<DropletId> {
         let mut arch = self.arch.write().unwrap();
+
+        // fail fast
+        if arch.grid.locations().all(|(x, _)| x != loc) {
+            return Err(PuddleError::LocationNotInArchitecture(loc));
+        }
+
         let move_cmd = Move::new(&mut arch, d1, loc)?;
         let out = move_cmd.output_droplets()[0];
         self.register(move_cmd);
@@ -261,8 +274,7 @@ mod tests {
     fn execute_input_command() {
         let session = Session::new(Architecture::from_grid(Grid::rectangle(1, 1)));
 
-        // todo: this shouldn't work
-        let loc = Location { y: 3, x: 3 };
+        let loc = Location { y: 0, x: 0 };
         let id = session.input(loc).unwrap();
         session.flush().unwrap();
 
@@ -329,7 +341,6 @@ mod tests {
     fn execute_all_commands() {
         let session = Session::new(Architecture::from_grid(Grid::rectangle(10, 10)));
 
-        // todo: add move into here.
         let id1 = session.input(Location { y: 2, x: 2 }).unwrap();
         let id2 = session.input(Location { y: 0, x: 0 }).unwrap();
         let id3 = session.mix(id1, id2).unwrap();
@@ -349,6 +360,29 @@ mod tests {
     }
 
     //
+    // Invalid Location Tests
+    //
+
+    #[test]
+    fn off_grid_input() {
+        let session = Session::new(Architecture::from_grid(Grid::rectangle(1, 1)));
+
+        let loc = Location { y: 1, x: 1 };
+        assert!(session.input(loc).is_err());
+    }
+
+    #[test]
+    fn off_grid_move() {
+        let session = Session::new(Architecture::from_grid(Grid::rectangle(1, 1)));
+
+        let loc = Location { y: 0, x: 0 };
+        let id1 = session.input(loc).unwrap();
+
+        assert!(session.move_droplet(id1, Location { y: 1, x: 1 }).is_err());
+
+    }
+
+    //
     //  Laziness Tests
     //
 
@@ -356,8 +390,7 @@ mod tests {
     fn lazy_input_command() {
         let session = Session::new(Architecture::from_grid(Grid::rectangle(1, 1)));
 
-        // TODO: this shouldn't work?
-        let loc = Location { y: 3, x: 3 };
+        let loc = Location { y: 0, x: 0 };
         let _ = session.input(loc).unwrap();
 
         let arch = session.arch.read().unwrap();
@@ -406,7 +439,7 @@ mod tests {
     fn lazy_split_command() {
         let session = Session::new(Architecture::from_grid(Grid::rectangle(1, 1)));
 
-        let id = session.input(Location { y: 1, x: 1 }).unwrap();
+        let id = session.input(Location { y: 0, x: 0 }).unwrap();
 
         session.flush().unwrap();
 

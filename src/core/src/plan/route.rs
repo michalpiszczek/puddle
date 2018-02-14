@@ -2,7 +2,7 @@
 use std::collections::{HashSet, HashMap};
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 
-use minheap::MinHeap;
+use plan::minheap::MinHeap;
 use arch::{Location, Droplet, DropletId, Architecture};
 use arch::grid::Grid;
 
@@ -323,7 +323,7 @@ pub mod tests {
                              |ref a| a.get_destination_collision().is_none())
         )
         {
-            let mut arch = rarch.clone();
+            let arch = rarch.clone();
             prop_assume!(arch.route().is_some());
             let paths = arch.route().unwrap();
             prop_assert_eq!(paths.len(), arch.droplets.len());

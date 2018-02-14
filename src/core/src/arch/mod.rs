@@ -99,7 +99,7 @@ impl Droplet {
         DropletInfo {
             location: self.location,
             volume: 1,
-            shape: vec![Location { y: 0, x: 0 }],
+            shape: self.shape.iter().cloned().collect(),
         }
     }
 }
@@ -171,11 +171,11 @@ impl Architecture {
                     continue;
                 }
 
-                let collide = self.grid.neighbors9(&droplet1.location)
+                let collide = self.grid.neighbors_shape(&droplet1.location, &droplet1.shape)
                     .into_iter()
                     // TODO this check will be more complicated when there are
                     // droplet shapes
-                    .any(|loc| loc == droplet2.location);
+                    .any(|loc| self.grid.neighbors_shape(&droplet2.location, &droplet2.shape).contains(&loc));
 
                 if collide {
                     return Some((*id1, *id2));

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use arch::Location;
 
@@ -176,11 +176,20 @@ impl Grid {
         vec.push(*loc);
         vec
     }
+
+    /// Returns a HashSet representing the neighbors of the location combined with
+    /// the shape (which consists of the offsets from `loc`
+    pub fn neighbors_shape(&self, loc: &Location, shape: &HashSet<Location>) -> HashSet<Location> {
+        let mut shape_nbrhd = HashSet::new();
+
+        for offset in shape {
+            let new_loc = loc + offset;
+            shape_nbrhd.extend(self.neighbors9(&new_loc));
+        }
+        shape_nbrhd
+    }
 }
 
-
-#[cfg(test)]
-use std::collections::HashSet;
 
 #[cfg(test)]
 impl Grid {

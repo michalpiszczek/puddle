@@ -16,7 +16,9 @@ def blend(session, d_black_factory, d_red_factory, d_green_factory,
 
     red_droplet.rgb = [red_droplet.concentration, 0, 0]
 
+    print("RED GOOD")
     assert red_droplet.volume == 1
+    print("RED GOODER")
 
     green_droplet = dilute(session, d_black_factory, d_green_factory,
             green_target, epsilon=epsilon)

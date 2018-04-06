@@ -14,6 +14,9 @@ let display_frame = 0; // current frame in visualizer
 let selected_frame = 0; // goal frame per user
 let max_frame = Number.MAX_VALUE; // frame when server is closed
 
+let request_id = 1000
+let auto_tick_rate = 500
+
 const CELL_SIZE = 50;
 const TWEEN_TIME = 200; // in millisec
 
@@ -279,14 +282,14 @@ function run_animation() {
         } else {
             clearInterval(interval_id);
         }
-    }, 500);
+    }, auto_tick_rate);
 }
 
 $(function() {
     function jQuery_fetch(){
         var req_data = {
             jsonrpc: '2.0',
-            id: 1000, // FIXME increment this
+            id: request_id++,
             method: 'visualizer_droplet_info',
             params: []
         };

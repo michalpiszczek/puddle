@@ -6,7 +6,7 @@ set -ev
 pushd src/core/
 cargo test
 # check for formatting
-cargo fmt -- --write-mode diff
+# cargo fmt -- --write-mode diff
 popd
 
 # test the python bindings
